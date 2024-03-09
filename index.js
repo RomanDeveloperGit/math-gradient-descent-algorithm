@@ -2,6 +2,8 @@ import * as math from "mathjs";
 
 // Предположим, что имеем нейросеть вида: (как в ./example.jpg)
 
+const learningRate = 0.1;
+
 // Входы и ожидаемые выходы тоже отнесу к параметрам
 // А веса проинициализирую руками, без рандома
 const parameters = {
@@ -50,6 +52,44 @@ const formula = {
   v22: math.parse("f11 * w21_2 + f12 * w22_2 + b22"),
 };
 
+// Посчитаем все формульные значения + активационные значения для них
+const calculateValues = () => {
+  Object.keys(formula)
+    .filter((key) => key !== "f" && key !== "e")
+    .forEach((key) => {
+      const expression = formula[key];
+      const expressionValue = expression.evaluate(parameters);
+
+      console.log(`[${key}]: ${expression.toString()} = ${expressionValue}`);
+
+      parameters[key] = expressionValue;
+
+      if (key.includes("v")) {
+        const additionalKey = key.replace("v", "f");
+
+        parameters[additionalKey] = formula.f.evaluate({
+          x: expressionValue,
+        });
+
+        console.log(
+          `[${additionalKey}]: ${formula.f.toString()} = ${
+            parameters[additionalKey]
+          }`
+        );
+      }
+    });
+};
+
+const checkActualState = () => {
+  console.log(parameters);
+
+  const loss = formula.e.evaluate(parameters);
+  console.log("loss:", loss);
+};
+
+calculateValues();
+checkActualState();
+
 const getExtendedE = () => {
   const f11 = formula.f.toString().replace("x", `(${formula.v11.toString()})`);
   const f12 = formula.f.toString().replace("x", `(${formula.v12.toString()})`);
@@ -71,53 +111,51 @@ const getExtendedE = () => {
 
 formula.extendedE = getExtendedE();
 
-const derivativeExtendedE = (varName = "w11_1") => {
+// костыль для mathjs
+const derivativeExtendedEFormula = (varName = "w11_1") => {
   return math
     .derivative(
       formula.extendedE.toString().replace(/_/g, ""),
       varName.replace("_", "")
     )
-    .toString();
+    .toString()
+    .replace(/w(\d)(\d)(\d)/g, "w$1$2_$3");
 };
 
-console.log(formula.e.toString());
-console.log(formula.extendedE.toString());
-console.log("Частная производная по w11_1", derivativeExtendedE("w11_1"));
-console.log("Частная производная по b11", derivativeExtendedE("b11"));
-console.log("Частная производная по w22_2", derivativeExtendedE("w22_2"));
+// Ищем градиент, но только по "w" и "b" весам
+// Занимает около минуты
+const getGradientByWeights = () => {
+  const availableKeys = Object.keys(parameters).filter(
+    (key) => key.includes("w") || key.includes("b")
+  );
 
-// // Посчитаем все формульные значения + активационные значения для них
-// const calculateValues = () => {
-//   Object.keys(formula)
-//     .filter((key) => key !== "f" && key !== "e")
-//     .forEach((key) => {
-//       const expression = formula[key];
-//       const expressionValue = expression.evaluate(parameters);
+  return availableKeys.reduce((acc, key) => {
+    const result = {
+      ...acc,
+      [key]: {
+        formula: derivativeExtendedEFormula(key),
+      },
+    };
 
-//       console.log(`[${key}]: ${expression.toString()} = ${expressionValue}`);
+    result[key].value = math.evaluate(result[key].formula, parameters);
 
-//       parameters[key] = expressionValue;
+    return result;
+  }, {});
+};
 
-//       if (key.includes("v")) {
-//         const additionalKey = key.replace("v", "f");
+// По сути, это и есть back-propagation
+const updateWeights = (gradient) => {
+  Object.keys(gradient).forEach((key) => {
+    parameters[key] = parameters[key] - learningRate * gradient[key].value;
+  });
+};
 
-//         parameters[additionalKey] = formula.f.evaluate({
-//           x: expressionValue,
-//         });
+const gradient = getGradientByWeights();
 
-//         console.log(
-//           `[${additionalKey}]: ${formula.f.toString()} = ${
-//             parameters[additionalKey]
-//           }`
-//         );
-//       }
-//     });
-// };
+console.log(gradient);
 
-// calculateValues();
+updateWeights(gradient);
 
-// // Итого, имеем все параметры
-// console.log(parameters);
-
-// const loss = formula.e.evaluate(parameters);
-// console.log("loss:", loss);
+// И снова проверим потерю, насколько она убавится
+calculateValues();
+checkActualState();
