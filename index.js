@@ -5,27 +5,37 @@ import * as math from "mathjs";
 // Входы и ожидаемые выходы тоже отнесу к параметрам
 // А веса проинициализирую руками, без рандома
 const parameters = {
-  i1: 0.1,
-  i2: 0.2,
-  i3: 0.3,
+  i1: 0,
+  i2: 0.6,
+  i3: 0,
 
-  w11_1: 0.2,
-  w12_1: 0.2,
-  w13_1: 0.2,
-  w21_1: 0.2,
-  w22_1: 0.2,
-  w23_1: 0.2,
-  b11: 0.2,
-  b12: 0.2,
+  w11_1: 0.1,
+  w12_1: 0.1,
+  w13_1: 0.1,
+  w21_1: 0.3,
+  w22_1: 0.3,
+  w23_1: 0.3,
+  b11: 0.1,
+  b12: 0.1,
 
-  w11_2: 0.2,
-  w12_2: 0.2,
-  w13_2: 0.2,
-  w21_2: 0.2,
-  w22_2: 0.2,
-  w23_2: 0.2,
-  b21: 0.2,
-  b22: 0.2,
+  v11: 0, // init
+  f11: 0, // init
+  v12: 0, // init
+  f12: 0, // init
+
+  w11_2: 0.5,
+  w12_2: 0.5,
+  w13_2: 0.5,
+  w21_2: 0.7,
+  w22_2: 0.7,
+  w23_2: 0.7,
+  b21: 0.9,
+  b22: 0.9,
+
+  v21: 0, // init
+  f21: 0, // init
+  v22: 0, // init
+  f22: 0, // init
 
   y1: 1,
   y2: 0,
@@ -40,38 +50,74 @@ const formula = {
   v22: math.parse("f11 * w21_2 + f12 * w22_2 + b22"),
 };
 
-// Посчитаем все формульные значения + добавим активационные значения для них
-Object.keys(formula)
-  .filter((key) => key !== "f" && key !== "e")
-  .forEach((key) => {
-    const expression = formula[key];
-    const expressionValue = expression.evaluate(parameters);
+const getExtendedE = () => {
+  const f11 = formula.f.toString().replace("x", `(${formula.v11.toString()})`);
+  const f12 = formula.f.toString().replace("x", `(${formula.v12.toString()})`);
+  const f21 = formula.f
+    .toString()
+    .replace("x", `(${formula.v21.toString()})`)
+    .replace("f11", `(${f11})`)
+    .replace("f12", `(${f12})`);
+  const f22 = formula.f
+    .toString()
+    .replace("x", `(${formula.v22.toString()})`)
+    .replace("f11", `(${f11})`)
+    .replace("f12", `(${f12})`);
 
-    console.log(`[${key}]: ${expression.toString()} = ${expressionValue}`);
+  return math.parse(
+    formula.e.toString().replace("f21", `(${f21})`).replace("f22", `(${f22})`)
+  );
+};
 
-    if (!(key in parameters)) {
-      parameters[key] = expressionValue;
+formula.extendedE = getExtendedE();
 
-      if (key.includes("v")) {
-        const additionalKey = key.replace("v", "f");
+const derivativeExtendedE = (varName = "w11_1") => {
+  return math
+    .derivative(
+      formula.extendedE.toString().replace(/_/g, ""),
+      varName.replace("_", "")
+    )
+    .toString();
+};
 
-        parameters[additionalKey] = formula.f.evaluate({
-          x: expressionValue,
-        });
+console.log(formula.e.toString());
+console.log(formula.extendedE.toString());
+console.log("Частная производная по w11_1", derivativeExtendedE("w11_1"));
+console.log("Частная производная по b11", derivativeExtendedE("b11"));
+console.log("Частная производная по w22_2", derivativeExtendedE("w22_2"));
 
-        console.log(
-          `[${additionalKey}]: ${formula.f.toString()} = ${
-            parameters[additionalKey]
-          }`
-        );
-      }
-    }
-  });
+// // Посчитаем все формульные значения + активационные значения для них
+// const calculateValues = () => {
+//   Object.keys(formula)
+//     .filter((key) => key !== "f" && key !== "e")
+//     .forEach((key) => {
+//       const expression = formula[key];
+//       const expressionValue = expression.evaluate(parameters);
 
-// Итого, имеем все параметры
-console.log(parameters);
+//       console.log(`[${key}]: ${expression.toString()} = ${expressionValue}`);
 
-const loss = formula.e.evaluate(parameters);
-console.log("loss:", loss);
+//       parameters[key] = expressionValue;
 
+//       if (key.includes("v")) {
+//         const additionalKey = key.replace("v", "f");
 
+//         parameters[additionalKey] = formula.f.evaluate({
+//           x: expressionValue,
+//         });
+
+//         console.log(
+//           `[${additionalKey}]: ${formula.f.toString()} = ${
+//             parameters[additionalKey]
+//           }`
+//         );
+//       }
+//     });
+// };
+
+// calculateValues();
+
+// // Итого, имеем все параметры
+// console.log(parameters);
+
+// const loss = formula.e.evaluate(parameters);
+// console.log("loss:", loss);
