@@ -1,0 +1,16 @@
+{
+  "name": "math-gradient-descent-algorithm",
+  "version": "1.0.0",
+  "description": "Partial implementation, notes on the gradient descent algorithm for training neural networks. Also, a little bit about the chain method of differentiating complex functions. And a test sample for clarity",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node ./index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mathjs": "^12.4.0"
+  }
+}
